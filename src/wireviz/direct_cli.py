@@ -40,7 +40,7 @@ def _direct_edge_codes(harness, mate):
 
 
 def _create_graph_with_direct_styles(self):
-    """Render styled direct edges and per-cable box background colors."""
+    """Render styled direct edges and custom/compact cable nodes."""
     direct_edges = {}
     for mate in self.mates:
         style = getattr(mate, "_direct_style", None)
@@ -53,8 +53,10 @@ def _create_graph_with_direct_styles(self):
         for cable in self.cables.values()
         if cable.bgcolor
     }
+    compact_cables = getattr(self, "_cable_style", "normal") == "compact"
+    cable_names = set(self.cables.keys())
 
-    if not direct_edges and not cable_fillcolors:
+    if not direct_edges and not cable_fillcolors and not compact_cables:
         return _original_create_graph(self)
 
     from graphviz import Graph
@@ -74,26 +76,20 @@ def _create_graph_with_direct_styles(self):
             attrs["dir"] = "none"
             if style.get("label") is not None:
                 label = str(style["label"])
-        return original_edge(
-            graph,
-            tail_name,
-            head_name,
-            label=label,
-            _attributes=_attributes,
-            **attrs
-        )
+        return original_edge(graph, tail_name, head_name, label=label, _attributes=_attributes, **attrs)
 
     def styled_node(graph, name, label=None, _attributes=None, **attrs):
         fillcolor = cable_fillcolors.get(name)
         if fillcolor is not None:
             attrs["fillcolor"] = fillcolor
-        return original_node(
-            graph,
-            name,
-            label=label,
-            _attributes=_attributes,
-            **attrs
-        )
+        if compact_cables and name in cable_names:
+            # GraphViz HTML labels inherit the node font size. A smaller font
+            # plus a minimal node margin makes cables visually subordinate to
+            # connectors while preserving all cable/wire information and ports.
+            attrs["fontsize"] = "9"
+            attrs["margin"] = "0.02,0.01"
+            attrs["penwidth"] = "0.8"
+        return original_node(graph, name, label=label, _attributes=_attributes, **attrs)
 
     Graph.edge = styled_edge
     Graph.node = styled_node
@@ -130,11 +126,14 @@ def _parse_with_direct_connections(
             image_paths=image_paths,
         )
 
-    # Make cable nodes visually distinct from device/connector nodes. WireViz
-    # already supports bgcolor_cable; our fork simply gives it a useful default.
-    # An explicit YAML option always wins, e.g. bgcolor_cable: "#FFF2CC".
     options = yaml_data.setdefault("options", {})
     options.setdefault("bgcolor_cable", "#E8E8E8")
+
+    # Fork-specific presentation option. Remove it before the upstream Options
+    # dataclass is constructed, then attach it to the Harness for graph output.
+    cable_style = options.pop("cable_style", "normal")
+    if cable_style not in ("normal", "compact"):
+        raise ValueError("options.cable_style must be 'normal' or 'compact'")
 
     yaml_data = expand_direct_connections(yaml_data)
     direct_styles = get_direct_connection_styles(yaml_data)
@@ -154,6 +153,7 @@ def _parse_with_direct_connections(
         output_name=output_name,
         image_paths=paths,
     )
+    harness._cable_style = cable_style
 
     for mate in harness.mates:
         if isinstance(mate, MatePin) and mate.shape in direct_styles:
@@ -166,11 +166,7 @@ def _parse_with_direct_connections(
         else:
             final_output_dir = _core._get_output_dir(None, output_dir)
             final_output_name = _core._get_output_name(None, output_name)
-        harness.output(
-            filename=final_output_dir / final_output_name,
-            fmt=output_formats,
-            view=False,
-        )
+        harness.output(filename=final_output_dir / final_output_name, fmt=output_formats, view=False)
 
     if not return_types:
         return None

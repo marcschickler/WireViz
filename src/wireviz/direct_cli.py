@@ -35,7 +35,7 @@ def _direct_edge_codes(harness, mate):
 
     return (
         "{}{}:e".format(mate.from_name, from_port_str),
-        "{}{}:w".format(mate.to_name, from_port_str),
+        "{}{}:w".format(mate.to_name, to_port_str),
     )
 
 

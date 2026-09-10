@@ -32,6 +32,9 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 _STYLE_KEY = "_wireviz_direct_connection_styles"
+_COLOR_ALIASES = {
+    "GR": "GY",  # grey: convenient alias for German-oriented wiring descriptions
+}
 
 
 def _entry_designator(entry: Any) -> Optional[str]:
@@ -77,11 +80,15 @@ def _direct_style(entry: Any) -> Dict[str, Any]:
             "Unknown direct connection attribute(s): " + ", ".join(sorted(unknown))
         )
 
-    return {
+    style = {
         key: value[key]
         for key in ("color", "label")
         if key in value and value[key] is not None
     }
+    if "color" in style and isinstance(style["color"], str):
+        color = style["color"].strip().upper()
+        style["color"] = _COLOR_ALIASES.get(color, color)
+    return style
 
 
 def _new_direct_arrow(styles: Dict[str, Dict[str, Any]], style: Dict[str, Any]) -> str:
@@ -140,8 +147,12 @@ def _expand_top_level_direct(
 
         left, right = _resolve_direct_pair(pair_name, connectors)
         pins = list(range(1, len(colors) + 1))
+        normalized_colors = []
+        for color in colors:
+            code = color.strip().upper()
+            normalized_colors.append(_COLOR_ALIASES.get(code, code))
         arrows = [
-            _new_direct_arrow(styles, {"color": color.strip()}) for color in colors
+            _new_direct_arrow(styles, {"color": color}) for color in normalized_colors
         ]
         result.append([{left: pins}, arrows, {right: pins}])
 

@@ -20,7 +20,7 @@ For very compact 1:1 wiring, this fork additionally supports a top-level
 ``direct`` section::
 
     direct:
-      X1-X2: [BN, BK, GR, YE]
+      X1-X2: [BN, BK, GY, YE]
 
 This is expanded to pin 1 -> 1, 2 -> 2, ... and uses the listed color for each
 individual wire. No Cable object is created, so direct connections have no
@@ -32,9 +32,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 _STYLE_KEY = "_wireviz_direct_connection_styles"
-_COLOR_ALIASES = {
-    "GR": "GY",  # grey: convenient alias for German-oriented wiring descriptions
-}
 
 
 def _entry_designator(entry: Any) -> Optional[str]:
@@ -80,21 +77,15 @@ def _direct_style(entry: Any) -> Dict[str, Any]:
             "Unknown direct connection attribute(s): " + ", ".join(sorted(unknown))
         )
 
-    style = {
+    return {
         key: value[key]
         for key in ("color", "label")
         if key in value and value[key] is not None
     }
-    if "color" in style and isinstance(style["color"], str):
-        color = style["color"].strip().upper()
-        style["color"] = _COLOR_ALIASES.get(color, color)
-    return style
 
 
 def _new_direct_arrow(styles: Dict[str, Dict[str, Any]], style: Dict[str, Any]) -> str:
     """Create a unique arrow token that is still accepted by WireViz' parser."""
-    # is_arrow() accepts trailing whitespace. This gives every generated direct
-    # connection a unique token without extending the core YAML parser.
     token = "--" + (" " * (len(styles) + 1))
     styles[token] = style
     return token
@@ -147,12 +138,8 @@ def _expand_top_level_direct(
 
         left, right = _resolve_direct_pair(pair_name, connectors)
         pins = list(range(1, len(colors) + 1))
-        normalized_colors = []
-        for color in colors:
-            code = color.strip().upper()
-            normalized_colors.append(_COLOR_ALIASES.get(code, code))
         arrows = [
-            _new_direct_arrow(styles, {"color": color}) for color in normalized_colors
+            _new_direct_arrow(styles, {"color": color.strip().upper()}) for color in colors
         ]
         result.append([{left: pins}, arrows, {right: pins}])
 
@@ -172,9 +159,6 @@ def expand_direct_connections(yaml_data: Dict) -> Dict:
     separator = data.get("options", {}).get("template_separator", ".")
     styles: Dict[str, Dict[str, Any]] = {}
 
-    # Compact fork-specific syntax, e.g.:
-    # direct:
-    #   Geraete1-Geraete2: [BN, BK, GR, YE]
     compact_sets = _expand_top_level_direct(data, styles, connectors)
 
     expanded_sets = []

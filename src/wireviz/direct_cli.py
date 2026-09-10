@@ -54,9 +54,10 @@ def _create_graph_with_direct_styles(self):
         if cable.bgcolor
     }
     compact_cables = getattr(self, "_cable_style", "normal") == "compact"
+    cable_shape = getattr(self, "_cable_shape", "box")
     cable_names = set(self.cables.keys())
 
-    if not direct_edges and not cable_fillcolors and not compact_cables:
+    if not direct_edges and not cable_fillcolors and not compact_cables and cable_shape == "box":
         return _original_create_graph(self)
 
     from graphviz import Graph
@@ -82,13 +83,19 @@ def _create_graph_with_direct_styles(self):
         fillcolor = cable_fillcolors.get(name)
         if fillcolor is not None:
             attrs["fillcolor"] = fillcolor
-        if compact_cables and name in cable_names:
-            # GraphViz HTML labels inherit the node font size. A smaller font
-            # plus a minimal node margin makes cables visually subordinate to
-            # connectors while preserving all cable/wire information and ports.
-            attrs["fontsize"] = "9"
-            attrs["margin"] = "0.02,0.01"
-            attrs["penwidth"] = "0.8"
+        if name in cable_names:
+            if compact_cables:
+                attrs["fontsize"] = "9"
+                attrs["margin"] = "0.02,0.01"
+                attrs["penwidth"] = "0.8"
+            if cable_shape == "rounded":
+                # Keep the HTML cable label and all connection ports intact;
+                # GraphViz draws only the outer cable node with rounded corners.
+                current_style = attrs.get("style", "filled")
+                styles = [item.strip() for item in current_style.split(",") if item.strip()]
+                if "rounded" not in styles:
+                    styles.append("rounded")
+                attrs["style"] = ",".join(styles)
         return original_node(graph, name, label=label, _attributes=_attributes, **attrs)
 
     Graph.edge = styled_edge
@@ -129,11 +136,15 @@ def _parse_with_direct_connections(
     options = yaml_data.setdefault("options", {})
     options.setdefault("bgcolor_cable", "#E8E8E8")
 
-    # Fork-specific presentation option. Remove it before the upstream Options
-    # dataclass is constructed, then attach it to the Harness for graph output.
+    # Fork-specific presentation options. Remove them before the upstream
+    # Options dataclass is constructed, then attach them to the Harness.
     cable_style = options.pop("cable_style", "normal")
     if cable_style not in ("normal", "compact"):
         raise ValueError("options.cable_style must be 'normal' or 'compact'")
+
+    cable_shape = options.pop("cable_shape", "box")
+    if cable_shape not in ("box", "rounded"):
+        raise ValueError("options.cable_shape must be 'box' or 'rounded'")
 
     yaml_data = expand_direct_connections(yaml_data)
     direct_styles = get_direct_connection_styles(yaml_data)
@@ -154,6 +165,7 @@ def _parse_with_direct_connections(
         image_paths=paths,
     )
     harness._cable_style = cable_style
+    harness._cable_shape = cable_shape
 
     for mate in harness.mates:
         if isinstance(mate, MatePin) and mate.shape in direct_styles:

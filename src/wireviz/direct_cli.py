@@ -2,7 +2,6 @@
 """WireViz CLI with support for direct connector-to-connector connections."""
 
 from pathlib import Path
-from typing import Dict
 
 import wireviz.wireviz as _core
 from wireviz.direct_connections import expand_direct_connections
@@ -20,7 +19,7 @@ def _parse_with_direct_connections(
 ):
     """Preprocess cable-less connections and delegate to the normal parser."""
     yaml_data, yaml_file = _core._get_yaml_data_and_path(inp)
-    if not isinstance(yaml_data, Dict):
+    if not isinstance(yaml_data, dict):
         return _original_parse(
             inp,
             return_types=return_types,
@@ -40,8 +39,9 @@ def _parse_with_direct_connections(
             output_dir = yaml_file.parent
         if output_name is None:
             output_name = yaml_file.stem
-        if yaml_file.parent not in [Path(p) for p in paths]:
-            paths.append(yaml_file.parent)
+        resolved_parent = yaml_file.parent.resolve()
+        if resolved_parent not in [Path(p).resolve() for p in paths]:
+            paths.append(resolved_parent)
 
     return _original_parse(
         yaml_data,

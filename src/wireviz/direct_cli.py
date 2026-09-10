@@ -51,8 +51,6 @@ def _create_graph_with_direct_styles(self):
     if not direct_edges:
         return _original_create_graph(self)
 
-    # Harness.create_graph creates a graphviz.Graph internally. Intercept only
-    # Graph.edge while it runs, so normal WireViz graph generation stays intact.
     from graphviz import Graph
 
     original_edge = Graph.edge
@@ -111,10 +109,15 @@ def _parse_with_direct_connections(
             image_paths=image_paths,
         )
 
+    # Make cable nodes visually distinct from device/connector nodes. WireViz
+    # already supports bgcolor_cable; our fork simply gives it a useful default.
+    # An explicit YAML option always wins, e.g. bgcolor_cable: "#FFF2CC".
+    options = yaml_data.setdefault("options", {})
+    options.setdefault("bgcolor_cable", "#E8E8E8")
+
     yaml_data = expand_direct_connections(yaml_data)
     direct_styles = get_direct_connection_styles(yaml_data)
 
-    # Preserve file based defaults after converting the input to a dict.
     paths = list(image_paths)
     if yaml_file:
         resolved_parent = yaml_file.parent.resolve()
@@ -123,8 +126,6 @@ def _parse_with_direct_connections(
         if output_name is None:
             output_name = yaml_file.stem
 
-    # Parse first without rendering. This lets us attach style information to
-    # the generated MatePin objects before GraphViz output is created.
     harness = _original_parse(
         yaml_data,
         return_types="harness",
@@ -166,9 +167,6 @@ def _parse_with_direct_connections(
     return tuple(returns) if len(returns) != 1 else returns[0]
 
 
-# wv_cli imports wireviz.wireviz as a module and calls wv.parse at execution
-# time. Replacing the function before importing the Click command keeps all
-# existing command-line options and behaviour intact.
 _core.parse = _parse_with_direct_connections
 
 from wireviz.wv_cli import wireviz  # noqa: E402,F401

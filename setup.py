@@ -31,7 +31,7 @@ setup(
     packages=find_packages("src"),
     entry_points={
         "console_scripts": [
-            "wireviz=wireviz.wv_cli:wireviz",
+            "wireviz=wireviz.direct_cli:wireviz",
         ],
     },
     classifiers=[

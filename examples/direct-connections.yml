@@ -13,11 +13,32 @@ connectors:
     pincount: 4
 
 connections:
-  # New syntax: adjacent connectors are connected directly, pin by pin.
-  # No cable definition, cable node or cable BOM item is required.
+  # Compact syntax: adjacent connectors are connected directly, pin by pin.
+  # This creates no cable definition, cable node or cable BOM item.
   - - X1: [1-4]
     - X2: [1-4]
 
-  # Direct connections can be used repeatedly, e.g. for a distribution chain.
-  - - X2: [1-4]
-    - X3: [1-4]
+  # Optional styling: use a direct marker between the connectors.
+  # WireViz short color codes such as RD, GN, BU etc. can be used.
+  - - X2: [1]
+    - direct:
+        color: RD
+        label: "24 V"
+    - X3: [1]
+
+  - - X2: [2]
+    - direct:
+        color: BU
+        label: "GND"
+    - X3: [2]
+
+  # Label and color are independently optional.
+  - - X2: [3]
+    - direct:
+        label: "Signal"
+    - X3: [3]
+
+  - - X2: [4]
+    - direct:
+        color: GN
+    - X3: [4]

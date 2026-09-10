@@ -40,7 +40,7 @@ def _direct_edge_codes(harness, mate):
 
 
 def _create_graph_with_direct_styles(self):
-    """Render generated direct mates as solid, optionally colored/labeled edges."""
+    """Render styled direct edges and per-cable box background colors."""
     direct_edges = {}
     for mate in self.mates:
         style = getattr(mate, "_direct_style", None)
@@ -48,12 +48,19 @@ def _create_graph_with_direct_styles(self):
             continue
         direct_edges[_direct_edge_codes(self, mate)] = style
 
-    if not direct_edges:
+    cable_fillcolors = {
+        cable.name: wv_colors.translate_color(cable.bgcolor, "HEX")
+        for cable in self.cables.values()
+        if cable.bgcolor
+    }
+
+    if not direct_edges and not cable_fillcolors:
         return _original_create_graph(self)
 
     from graphviz import Graph
 
     original_edge = Graph.edge
+    original_node = Graph.node
 
     def styled_edge(graph, tail_name, head_name, label=None, _attributes=None, **attrs):
         style = direct_edges.get((tail_name, head_name))
@@ -76,11 +83,25 @@ def _create_graph_with_direct_styles(self):
             **attrs
         )
 
+    def styled_node(graph, name, label=None, _attributes=None, **attrs):
+        fillcolor = cable_fillcolors.get(name)
+        if fillcolor is not None:
+            attrs["fillcolor"] = fillcolor
+        return original_node(
+            graph,
+            name,
+            label=label,
+            _attributes=_attributes,
+            **attrs
+        )
+
     Graph.edge = styled_edge
+    Graph.node = styled_node
     try:
         return _original_create_graph(self)
     finally:
         Graph.edge = original_edge
+        Graph.node = original_node
 
 
 Harness.create_graph = _create_graph_with_direct_styles

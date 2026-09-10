@@ -1,0 +1,23 @@
+metadata:
+  title: Direct connections without cables
+
+connectors:
+  X1:
+    type: Source
+    pincount: 4
+  X2:
+    type: Distribution point
+    pincount: 4
+  X3:
+    type: Load
+    pincount: 4
+
+connections:
+  # New syntax: adjacent connectors are connected directly, pin by pin.
+  # No cable definition, cable node or cable BOM item is required.
+  - - X1: [1-4]
+    - X2: [1-4]
+
+  # Direct connections can be used repeatedly, e.g. for a distribution chain.
+  - - X2: [1-4]
+    - X3: [1-4]
